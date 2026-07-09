@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tabla Periódica Interactiva de los Elementos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    :root {
+        --bg-color: #f8f9fa;
+        --text-color: #212529;
+        --border-color: #dee2e6;
+        --shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    h1 { margin-bottom: 20px; color: #343a40; }
+    #controls {
+        width: 100%;
+        max-width: 1200px;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+    }
+    #search {
+        padding: 12px 20px;
+        width: 100%;
+        max-width: 400px;
+        border: 2px solid var(--border-color);
+        border-radius: 25px;
+        font-size: 16px;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+    #search:focus { border-color: #007bff; }
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        max-width: 1000px;
+    }
+    .legend span {
+        padding: 4px 12px;
+        border-radius: 15px;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+    }
+    #table-container {
+        width: 100%;
+        overflow-x: auto;
+        padding: 20px 0;
+    }
+    #table {
+        display: grid;
+        grid-template-columns: repeat(18, 65px);
+        grid-template-rows: repeat(10, 75px);
+        gap: 4px;
+        margin: 0 auto;
+        width: fit-content;
+    }
+    .element {
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 4px;
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        height: 75px;
+        box-sizing: border-box;
+    }
+    .element:hover {
+        transform: scale(1.1);
+        z-index: 10;
+        box-shadow: var(--shadow);
+    }
+    .element .num { font-size: 10px; align-self: flex-start; }
+    .element .sym { font-size: 18px; font-weight: bold; }
+    .element .name { font-size: 9px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; width: 100%; text-align: center; }
+    
+    .empty-cell { width: 65px; height: 75px; }
+
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 100;
+        backdrop-filter: blur(3px);
+    }
+    .modal-content {
+        background: white;
+        width: 90%;
+        max-width: 500px;
+        margin: 10% auto;
+        padding: 30px;
+        border-radius: 15px;
+        position: relative;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        color: #333;
+    }
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        cursor: pointer;
+        font-size: 28px;
+        color: #aaa;
+    }
+    .close:hover { color: #000; }
+    #details h2 { margin-top: 0; color: #007bff; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    #details p { margin: 12px 0; line-height: 1.5; font-size: 16px; }
+    #details b { color: #495057; display: inline-block; width: 180px; }
+
+    /* Footer Info Box */
+    .footer-box {
+        margin-top: 40px;
+        padding: 20px;
+        border: 2px solid #343a40;
+        border-radius: 10px;
+        background: white;
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+        box-shadow: var(--shadow);
+    }
+    .footer-box p {
+        margin: 5px 0;
+        font-weight: bold;
+        color: #333;
+    }
+    .footer-box .group-tag {
+        margin-top: 10px;
+        font-size: 1.2em;
+        color: #007bff;
+    }
+</style>
+</head>
+<body>
+    <h1>Tabla Periódica de los Elementos</h1>
+    
+    <div id="controls">
+        <input id="search" type="text" placeholder="Buscar por nombre, símbolo o número...">
+        <div class="legend" id="legend"></div>
+    </div>
+
+    <div id="table-container">
+        <div id="table"></div>
+    </div>
+
+    <div class="footer-box">
+        <p>Flores Aguilar</p>
+        <p>Reyes Cruz</p>
+        <p>Jumpo Bazán</p>
+        <p class="group-tag">3 H</p>
+    </div>
+    
+    <div id="modal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">×</span>
+        <div id="details"></div>
+      </div>
+    </div>
+
+<script>
+const categoryNames = {
+    "alkali metal": "Metales alcalinos",
+    "alkaline earth metal": "Metales alcalinotérreos",
+    "transition metal": "Metales de transición",
+    "post-transition metal": "Metales postransición",
+    "metalloid": "Metaloides",
+    "polyatomic nonmetal": "No metales poliatómicos",
+    "diatomic nonmetal": "No metales diatómicos",
+    "noble gas": "Gases nobles",
+    "lanthanide": "Lantánidos",
+    "actinide": "Actínidos",
+    "unknown, probably post-transition metal": "Metal postransición probable",
+    "unknown, but predicted to be an alkali metal": "Metal alcalino probable",
+    "unknown, probably transition metal": "Metal de transición probable",
+    "unknown, probably metalloid": "Metaloide probable",
+    "unknown, predicted to be noble gas": "Gas noble probable",
+    "unknown": "Desconocido"
+};
+
+const colors = {
+    "alkali metal": "#e74c3c",
+    "alkaline earth metal": "#e67e22",
+    "transition metal": "#f1c40f",
+    "post-transition metal": "#2ecc71",
+    "metalloid": "#1abc9c",
+    "polyatomic nonmetal": "#3498db",
+    "diatomic nonmetal": "#5dade2",
+    "noble gas": "#9b59b6",
+    "lanthanide": "#f39c12",
+    "actinide": "#95a5a6",
+    "unknown, probably post-transition metal": "#27ae60",
+    "unknown, but predicted to be an alkali metal": "#c0392b",
+    "unknown, probably transition metal": "#d4ac0d",
+    "unknown, probably metalloid": "#16a085",
+    "unknown, predicted to be noble gas": "#8e44ad",
+    "unknown": "#7f8c8d"
+};
+
+const elementNamesES = {
+    "Hydrogen": "Hidrógeno", "Helium": "Helio", "Lithium": "Litio", "Beryllium": "Berilio", "Boron": "Boro",
+    "Carbon": "Carbono", "Nitrogen": "Nitrógeno", "Oxygen": "Oxígeno", "Fluorine": "Flúor", "Neon": "Neón",
+    "Sodium": "Sodio", "Magnesium": "Magnesio", "Aluminium": "Aluminio", "Silicon": "Silicio", "Phosphorus": "Fósforo",
+    "Sulfur": "Azufre", "Chlorine": "Cloro", "Argon": "Argón", "Potassium": "Potasio", "Calcium": "Calcio",
+    "Scandium": "Escandio", "Titanium": "Titanio", "Vanadium": "Vanadio", "Chromium": "Cromo", "Manganese": "Manganeso",
+    "Iron": "Hierro", "Cobalt": "Cobalto", "Nickel": "Níquel", "Copper": "Cobre", "Zinc": "Zinc",
+    "Gallium": "Galio", "Germanium": "Germanio", "Arsenic": "Arsénico", "Selenium": "Selenio", "Bromine": "Bromo",
+    "Krypton": "Kriptón", "Rubidium": "Rubidio", "Strontium": "Estroncio", "Yttrium": "Itrio", "Zirconium": "Zirconio",
+    "Niobium": "Niobio", "Molybdenum": "Molibdeno", "Technetium": "Tecnecio", "Ruthenium": "Rutenio", "Rhodium": "Rodio",
+    "Palladium": "Paladio", "Silver": "Plata", "Cadmium": "Cadmio", "Indium": "Indio", "Tin": "Estaño",
+    "Antimony": "Antimonio", "Tellurium": "Telurio", "Iodine": "Yodo", "Xenon": "Xenón", "Cesium": "Cesio",
+    "Barium": "Bario", "Lanthanum": "Lantano", "Cerium": "Cerio", "Praseodymium": "Praseodimio", "Neodymium": "Neodimio",
+    "Promethium": "Prometio", "Samarium": "Samario", "Europium": "Europio", "Gadolinium": "Gadolinio", "Terbium": "Terbio",
+    "Dysprosium": "Disprosio", "Holmium": "Holmio", "Erbium": "Erbio", "Thulium": "Tulio", "Ytterbium": "Iterbio",
+    "Lutetium": "Lutecio", "Hafnium": "Hafnio", "Tantalum": "Tantalio", "Tungsten": "Wolframio", "Rhenium": "Renio",
+    "Osmium": "Osmio", "Iridium": "Iridio", "Platinum": "Platino", "Gold": "Oro", "Mercury": "Mercurio",
+    "Thallium": "Talio", "Lead": "Plomo", "Bismuth": "Bismuto", "Polonium": "Polonio", "Astatine": "Astato",
+    "Radon": "Radón", "Francium": "Francio", "Radium": "Radio", "Actinium": "Actinio", "Thorium": "Torio",
+    "Protactinium": "Protactinio", "Uranium": "Uranio", "Neptunium": "Neptunio", "Plutonium": "Plutonio", "Americium": "Americio",
+    "Curium": "Curio", "Berkelium": "Berkelio", "Californium": "Californio", "Einsteinium": "Einsteinio", "Fermium": "Fermio",
+    "Mendelevium": "Mendelevio", "Nobelium": "Nobelio", "Lawrencium": "Laurencio", "Rutherfordium": "Rutherfordio", "Dubnium": "Dubnio",
+    "Seaborgium": "Seaborgio", "Bohrium": "Bohrio", "Hassium": "Hassio", "Meitnerium": "Meitnerio", "Darmstadtium": "Darmstadtio",
+    "Roentgenium": "Roentgenio", "Copernicium": "Copernicio", "Nihonium": "Nihonio", "Flerovium": "Flerovio", "Moscovium": "Moscovio",
+    "Livermorium": "Livermorio", "Tennessine": "Teneso", "Oganesson": "Oganesón"
+};
+
+const legend = document.getElementById("legend");
+const usedCategories = ["alkali metal", "alkaline earth metal", "transition metal", "post-transition metal", "metalloid", "polyatomic nonmetal", "diatomic nonmetal", "noble gas", "lanthanide", "actinide"];
+usedCategories.forEach(key => {
+    const span = document.createElement("span");
+    span.style.background = colors[key];
+    span.textContent = categoryNames[key];
+    legend.appendChild(span);
+});
+
+fetch("https://raw.githubusercontent.com/Bowserinator/Periodic-Table-JSON/master/PeriodicTableJSON.json")
+.then(r => r.json())
+.then(data => {
+    const table = document.getElementById("table");
+    for (let i = 0; i < 180; i++) {
+        const empty = document.createElement("div");
+        empty.className = "empty-cell";
+        table.appendChild(empty);
+    }
+
+    data.elements.forEach(el => {
+        let x = el.xpos;
+        let y = el.ypos;
+        if (el.number >= 57 && el.number <= 71) {
+            y = 9;
+            x = el.number - 57 + 3;
+        } else if (el.number >= 89 && el.number <= 103) {
+            y = 10;
+            x = el.number - 89 + 3;
+        }
+        const pos = (y - 1) * 18 + (x - 1);
+        if (pos >= 180) return;
+
+        const div = document.createElement("div");
+        div.className = "element";
+        div.style.background = colors[el.category] || colors.unknown;
+        const nameES = elementNamesES[el.name] || el.name;
+        div.dataset.search = (nameES + " " + el.symbol + " " + el.number).toLowerCase();
+        div.innerHTML = `<span class="num">${el.number}</span><span class="sym">${el.symbol}</span><span class="name">${nameES}</span>`;
+
+        div.onclick = () => {
+            const catES = categoryNames[el.category] || el.category;
+            document.getElementById("details").innerHTML = `
+                <h2>${nameES} (${el.symbol})</h2>
+                <p><b>Número atómico:</b> ${el.number}</p>
+                <p><b>Masa atómica:</b> ${el.atomic_mass} u</p>
+                <p><b>Categoría:</b> ${catES}</p>
+                <p><b>Grupo:</b> ${el.xpos}</p>
+                <p><b>Período:</b> ${el.ypos}</p>
+                <p><b>Configuración electrónica:</b> ${el.electron_configuration}</p>
+            `;
+            document.getElementById("modal").style.display = "block";
+        };
+        if (table.children[pos]) table.children[pos].replaceWith(div);
+    });
+
+    document.getElementById("search").addEventListener("input", e => {
+        const q = e.target.value.toLowerCase();
+        document.querySelectorAll(".element").forEach(el => {
+            if (el.dataset.search.includes(q)) {
+                el.style.opacity = "1";
+                el.style.transform = "scale(1)";
+            } else {
+                el.style.opacity = "0.1";
+                el.style.transform = "scale(0.8)";
+            }
+        });
+    });
+});
+
+function closeModal() { document.getElementById("modal").style.display = "none"; }
+window.onclick = (event) => { if (event.target == document.getElementById("modal")) closeModal(); }
+</script>
+</body>
+</html>
